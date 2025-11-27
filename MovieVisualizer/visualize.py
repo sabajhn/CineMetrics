@@ -129,3 +129,21 @@ class MovieVisualizer:
         ax.set_xlabel('Log(Popularity Score)', fontsize=12)
         ax.set_ylabel('Vote Average (0-10)', fontsize=12)
         return fig
+
+    def plot_feature_importance(self, importance_df: pd.DataFrame):
+        """Returns a bar chart of the Machine Learning Feature Importance."""
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        sns.barplot(
+            data=importance_df,
+            x='importance',
+            y='feature',
+            palette='mako',
+            hue='feature',
+            legend=False,
+            ax=ax
+        )
+        ax.set_title('What drives Revenue? (Model Feature Importance)', fontsize=14)
+        ax.set_xlabel('Importance Score', fontsize=12)
+        ax.set_ylabel('Feature', fontsize=12)
+        return fig

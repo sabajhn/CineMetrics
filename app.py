@@ -1,8 +1,7 @@
 """
 Module: app.py
 Description: The main entry point for the Streamlit Web Application.
-             It orchestrates the Data Processing, Analysis, and Visualization classes
-             to create an interactive dashboard.
+             It orchestrates Data Processing, Analysis, ML, and Visualization.
 """
 
 import streamlit as st
@@ -10,6 +9,8 @@ import pandas as pd
 from MovieDataProcessor.data_cleaner import MovieDataProcessor, CSV_PATH
 from MovieAnalyzer.analysis import MovieAnalyzer
 from MovieVisualizer.visualize import MovieVisualizer 
+
+from models.model import MoviePredictor
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -22,7 +23,7 @@ st.set_page_config(
 st.title("🎬 CineMetrics: The Blockbuster Blueprint")
 st.markdown("""
 This interactive dashboard explores the factors that determine cinematic success. 
-We analyze **45,000+ movies** to uncover trends in **Revenue**, **Budget**, **Genre**, and **Seasonality**.
+We analyze **45,000+ movies** to uncover trends and use **Machine Learning** to predict future hits.
 """)
 
 # --- 1. Data Loading (Cached) ---
@@ -31,19 +32,35 @@ def load_and_process_data():
     processor = MovieDataProcessor(path=CSV_PATH)
     df_raw = processor.load_data()
     df_clean = processor.preprocess_data(df_raw)
-    return df_clean
+    
+    # CRITICAL FIX for Streamlit caching (TypeError: unhashable type: 'list'):
+    # Drop any temporary columns created during preprocessing that contain lists (unhashable)
+    # The columns 'genres_list' and 'companies_list' from data_cleaner are the likely culprits.
+    unhashable_cols = [col for col in df_clean.columns if df_clean[col].apply(lambda x: isinstance(x, list)).any()]
+    df_final = df_clean.drop(columns=unhashable_cols, errors='ignore')
+    
+    return df_final
 
-# Check if data exists before trying to load
+# --- 2. Model Training (Cached) ---
+@st.cache_resource
+def train_model(df):
+    predictor = MoviePredictor(df)
+    metrics = predictor.train()
+    return predictor, metrics
+
+# Check data existence
 import os
 if not os.path.exists(CSV_PATH):
     st.error(f"❌ Critical Error: Dataset not found at `{CSV_PATH}`.")
     st.info("Please create a 'data' folder and put 'movies_metadata.csv' inside it.")
     st.stop()
 
-with st.spinner('Loading and cleaning data...'):
+# Execute Loading
+with st.spinner('Loading data and training AI model...'):
     try:
         df = load_and_process_data()
-        st.success(f"Data loaded successfully! Analyzed {len(df):,} valid movie records.")
+        predictor, metrics = train_model(df)
+        st.success(f"System ready! Analyzed {len(df):,} movies. ML Model Accuracy (R²): {metrics['r2']:.2f}")
     except Exception as e:
         st.error(f"Error processing data: {e}")
         st.stop()
@@ -56,14 +73,13 @@ visualizer = MovieVisualizer()
 st.sidebar.header("Navigation")
 options = st.sidebar.radio(
     "Choose Analysis Module:", 
-    ["Overview & Stats", "Financial Analysis", "Genre & Studio Insights", "Data Mining Deep Dive"]
+    ["Overview & Stats", "Financial Analysis", "Genre & Studio Insights", "Data Mining Deep Dive", "🔮 ML Revenue Predictor"]
 )
 
 # --- MODULE 1: Overview & Stats ---
 if options == "Overview & Stats":
     st.header("📊 Dataset Overview")
     
-    # Key Metrics Row
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Total Movies", f"{len(df):,}")
     col2.metric("Avg Budget", f"${df['budget'].mean():,.0f}")
@@ -74,7 +90,6 @@ if options == "Overview & Stats":
     st.dataframe(df.head(10))
     
     st.subheader("Key Correlations")
-    st.markdown("How strongly are these variables related? (1.0 = Perfect Correlation)")
     corr_matrix = analyzer.get_correlation_matrix()
     st.dataframe(corr_matrix.style.background_gradient(cmap="coolwarm"))
 
@@ -98,7 +113,6 @@ elif options == "Genre & Studio Insights":
     st.header("🎭 Genre & Studio Analytics")
     
     col1, col2 = st.columns(2)
-    
     with col1:
         st.subheader("Most Profitable Genres")
         genre_data = analyzer.get_genre_metrics()
@@ -112,8 +126,6 @@ elif options == "Genre & Studio Insights":
         studio_data = analyzer.get_top_studios()
         fig_studio = visualizer.plot_top_studios(studio_data)
         st.pyplot(fig_studio)
-        with st.expander("View Studio Data"):
-            st.dataframe(studio_data)
 
 # --- MODULE 4: Data Mining Deep Dive ---
 elif options == "Data Mining Deep Dive":
@@ -134,3 +146,48 @@ elif options == "Data Mining Deep Dive":
     st.markdown("Do audiences prefer specific movie lengths?")
     runtime_data = analyzer.get_runtime_metrics()
     st.table(runtime_data)
+
+# --- MODULE 5: Machine Learning (BONUS) ---
+elif options == "🔮 ML Revenue Predictor":
+    st.header("🔮 AI Revenue Prediction")
+    st.markdown("""
+    Use our trained **Random Forest Machine Learning model** to predict the Box Office Revenue for a hypothetical movie.
+    """)
+
+    col1, col2 = st.columns([1, 2])
+
+    with col1:
+        st.subheader("Movie Parameters")
+        
+        # User Inputs
+        budget_input = st.number_input("Budget (USD)", min_value=1000, value=10000000, step=1000000)
+        runtime_input = st.slider("Runtime (Minutes)", 30, 240, 120)
+        popularity_input = st.slider("Expected Popularity Score", 1.0, 50.0, 10.0)
+        
+        # Get list of unique genres from data for the dropdown
+        unique_genres = sorted(df['primary_genre'].dropna().unique())
+        genre_input = st.selectbox("Primary Genre", unique_genres)
+        
+        predict_btn = st.button("Predict Box Office Revenue", type="primary")
+
+    with col2:
+        if predict_btn:
+            prediction = predictor.predict(budget_input, runtime_input, popularity_input, genre_input)
+            
+            st.success(f"💰 Predicted Revenue: **${prediction:,.2f}**")
+            
+            # Simple ROI calc for the prediction
+            predicted_roi = (prediction - budget_input) / budget_input
+            if predicted_roi > 0:
+                st.metric("Estimated ROI", f"+{predicted_roi:.2f}x", delta_color="normal")
+            else:
+                st.metric("Estimated ROI", f"{predicted_roi:.2f}x", delta_color="inverse")
+
+        st.markdown("---")
+        st.subheader("What drives the prediction?")
+        st.markdown("The chart below shows which features the AI finds most important.")
+        
+        feature_importance = predictor.get_feature_importance()
+        if feature_importance is not None:
+            fig_imp = visualizer.plot_feature_importance(feature_importance)
+            st.pyplot(fig_imp)
