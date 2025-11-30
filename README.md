@@ -29,27 +29,27 @@ The data was sourced from:
 ## **Features**
 
 ### **1. 📊 Interactive Dashboard**
-- **Overview:** High-level metrics including **Total Movies**, **Avg Budget/Revenue**, and <ins>ROI</ins>.
-- **Financial Analysis:** Budget vs. Revenue correlations and historical market trends (decades, yearly growth).
-- **Genre & Studio Analytics:**
-  - Genre Word Clouds.
-  - _ROI Analysis_ by Genre.
-- **Distributions:** Boxen plots (Popularity) and Violin plots (Runtime).
-- **Data Mining:** Seasonality analysis (best month to release?) and Popularity vs. Quality checks.
+- High-level metrics: **Total Movies**, **Avg Budget/Revenue**, <ins>ROI</ins>.
+- Financial analysis: Budget vs. Revenue correlations, decade trends, yearly growth.
+- Genre & Studio analytics:
+  - Genre word clouds.
+  - ROI by Genre.
+- Distributions: Boxen plots (Popularity), Violin plots (Runtime).
+- Data mining: Seasonality (best release month), Popularity vs. Quality.
 
 ---
 
 ### **2. 🤖 Machine Learning**
-- **Success Classifier (Classification):**
-  - Uses Gradient Boosting to classify a movie as a **"Hit"** (Critical Success) or **"Average/Flop"**.
-  - Includes a <ins>Confusion Matrix</ins> for model performance evaluation.
+- **Success Classifier:**
+  - Gradient Boosting model that classifies movies as **Hit** or **Average/Flop**.
+  - Includes a <ins>Confusion Matrix</ins>.
 
 ---
 
 ### **3. 🌟 Top Charts (Ranking Algorithm)**
-- Implements the **IMDB Weighted Rating Formula** to rank movies fairly.
-- Balances a movie’s average rating with its number of votes.
-- Allows filtering by **Genre** (e.g., *Top 10 Horror Movies*).
+- Uses the **IMDB Weighted Rating Formula**.
+- Balances rating with vote count.
+- Genre filtering (e.g., *Top 10 Horror Movies*).
 
 ---
 
@@ -64,9 +64,29 @@ Ensure you have **Python 3.8+** installed.
 
 ---
 
-## **2. Install Dependencies**
+## **2. Clone the Repository**
+Clone the GitHub repository:
+
+```bash
+git clone <YOUR_GITHUB_REPO_URL>
+cd <REPOSITORY_FOLDER_NAME>
+
+## 3. Install Dependencies
+
 Run the following command to install all required libraries:
 
 ```bash
 pip install -r requirements.txt
+
+## 3. Run the App
+
+Launch the dashboard with Streamlit:
+
+```bash
+streamlit run app.py
+
+This will open the application at:
+
+**http://localhost:8501**
+
 
