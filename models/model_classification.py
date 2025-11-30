@@ -81,10 +81,10 @@ class SuccessClassifier:
         
         return metrics
 
-    def predict_proba(self, budget, runtime, popularity, is_franchise, vote_count, genre, language, month, studio):
+    def predict_proba(self, budget, runtime, popularity, vote_count, genre, language, month, studio):
         """Returns the probability of being a Hit."""
         studio_processed = studio if studio in self.top_studios else 'Other'
         
-        input_df = pd.DataFrame([[budget, runtime, popularity, is_franchise, vote_count, genre, language, month, studio_processed]], 
+        input_df = pd.DataFrame([[budget, runtime, popularity, vote_count, genre, language, month, studio_processed]], 
                                 columns=self.numeric_features + self.categorical_features)
         return self.pipeline.predict_proba(input_df)[0][1]

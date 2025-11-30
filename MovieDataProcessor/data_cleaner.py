@@ -1,13 +1,14 @@
 """
 Module: data_cleaner.py
-Description: Encapsulates data ingestion, cleaning, and feature engineering
-             within the MovieDataProcessor class.
+Description: Encapsulates data ingestion, cleaning, and feature engineering.
+             Now includes the Streamlit-cached loader function.
 """
 
 import os
 import ast
 import pandas as pd
 import numpy as np
+import streamlit as st
 from typing import Optional, List, Any
 
 # Configuration Constants
@@ -25,87 +26,85 @@ class MovieDataProcessor:
     
     @staticmethod
     def safe_parse_json(json_str: Any) -> List[Any]:
-        """
-        Safely parses stringified JSON (e.g., "[{'id': 1, 'name': 'Action'}]").
-        Returns a Python list.
-        """
-        if isinstance(json_str, list):
-            return json_str
-        if pd.isna(json_str) or json_str == '':
-            return []
+        """Safely parses stringified JSON."""
+        if isinstance(json_str, list): return json_str
+        if pd.isna(json_str) or json_str == '': return []
         try:
-            # ast.literal_eval safely evaluates a string containing a Python literal
             return ast.literal_eval(str(json_str))
         except (ValueError, SyntaxError):
             return []
 
     def load_data(self) -> pd.DataFrame:
-        """
-        Loads data from CSV with error handling.
-        """
-        # Only load columns we actually need to save memory
+        """Loads raw data from CSV."""
         cols_to_use = [
             'id', 'title', 'budget', 'revenue', 'release_date', 
             'genres', 'production_companies', 'runtime', 
             'vote_average', 'vote_count', 'popularity',
-            'belongs_to_collection', 'original_language' # Added for ML features
+            'belongs_to_collection', 'original_language',
+            'overview', 'tagline' 
         ]
-
         try:
-            # low_memory=False handles mixed data types in the raw Kaggle file
             self.df = pd.read_csv(self.path, usecols=cols_to_use, low_memory=False)
             return self.df
         except FileNotFoundError:
-            # Re-raising allows the App to catch it and show a nice UI error
             raise FileNotFoundError(f"Could not find '{self.path}'. Please check the 'data' folder.")
 
     def preprocess_data(self, df_raw: pd.DataFrame) -> pd.DataFrame:
-        """
-        Cleans the raw data: parses JSON, converts types, and adds features.
-        """
+        """Cleans the raw data and adds features."""
         df = df_raw.copy()
         
-        # 1. Parse JSON Columns
-        # We extract the first item's 'name' from the list of dictionaries
+        # 1. Parse JSON
         df['genres_list'] = df['genres'].apply(self.safe_parse_json)
-        df['primary_genre'] = df['genres_list'].apply(
-            lambda x: x[0]['name'] if isinstance(x, list) and len(x) > 0 else np.nan
-        )
+        df['primary_genre'] = df['genres_list'].apply(lambda x: x[0]['name'] if isinstance(x, list) and len(x) > 0 else np.nan)
         
         df['companies_list'] = df['production_companies'].apply(self.safe_parse_json)
-        df['lead_studio'] = df['companies_list'].apply(
-            lambda x: x[0]['name'] if isinstance(x, list) and len(x) > 0 else np.nan
-        )
+        df['lead_studio'] = df['companies_list'].apply(lambda x: x[0]['name'] if isinstance(x, list) and len(x) > 0 else np.nan)
 
-        # NEW: Franchise Feature (Big accuracy booster)
-        # Check if 'belongs_to_collection' has valid data
-        df['is_franchise'] = df['belongs_to_collection'].apply(
-            lambda x: 1 if pd.notna(x) and x != '[]' and x != '' else 0
-        )
+        # 2. Feature Engineering
+        df['is_franchise'] = df['belongs_to_collection'].apply(lambda x: 1 if pd.notna(x) and x != '[]' and x != '' else 0)
 
-        # 2. Numeric Conversion
-        # Coerce errors to NaN (e.g., if budget is 'unknown')
+        # 3. Numeric Conversion
         numeric_cols = ['budget', 'revenue', 'runtime', 'vote_count', 'vote_average', 'popularity']
         for col in numeric_cols:
             df[col] = pd.to_numeric(df[col], errors='coerce')
         
-        # Treat 0 budget/revenue as missing data for accurate financial analysis
         df['budget'] = df['budget'].replace(0, np.nan)
         df['revenue'] = df['revenue'].replace(0, np.nan)
 
-        # 3. Date Handling
+        # 4. Date Handling
         df['release_date'] = pd.to_datetime(df['release_date'], errors='coerce')
         df['year'] = df['release_date'].dt.year
         df['month'] = df['release_date'].dt.month_name()
 
-        # 4. Feature Engineering (Scientific Computing)
+        # 5. Profit/ROI
         df['profit'] = df['revenue'] - df['budget']
         df['roi'] = df['profit'] / df['budget']
 
-        # 5. Filtering
-        # Drop rows missing critical data for our core analysis
-        df_clean = df.dropna(subset=[
-            'budget', 'revenue', 'primary_genre', 'year', 'popularity', 'original_language'
-        ])
+        # 6. Filtering
+        df_clean = df.dropna(subset=['budget', 'revenue', 'primary_genre', 'year', 'popularity', 'original_language'])
         
         return df_clean
+
+# --- STREAMLIT CACHED LOADER (Moved here for better organization) ---
+@st.cache_data(show_spinner="Loading and cleaning data...")
+def get_clean_data():
+    """
+    Public function to get the fully processed dataframe.
+    Handles the caching logic and unhashable type fix.
+    """
+    if not os.path.exists(CSV_PATH):
+        return None
+
+    processor = MovieDataProcessor(path=CSV_PATH)
+    df_raw = processor.load_data()
+    df_clean = processor.preprocess_data(df_raw)
+    
+    # Fix for Streamlit Caching (Convert unhashable types to strings)
+    for col in df_clean.columns:
+        if df_clean[col].dtype == 'object':
+            try:
+                pd.util.hash_pandas_object(df_clean[[col]])
+            except TypeError:
+                df_clean[col] = df_clean[col].astype(str)
+                
+    return df_clean
