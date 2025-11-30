@@ -1,0 +1,82 @@
+--- Python ---
+
+Byte-compiled / optimized / DLL files
+
+pycache/
+*.py[cod]
+*$py.class
+
+C extensions
+
+*.so
+
+Distribution / packaging
+
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+--- Virtual Environments ---
+
+Common names for virtualenvs
+
+venv/
+env/
+ENV/
+.env
+.venv/
+
+--- Jupyter Notebooks ---
+
+.ipynb_checkpoints
+
+--- IDE & Editor Configs ---
+
+.idea/
+.vscode/
+*.swp
+*.swo
+
+--- OS Generated Files ---
+
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+--- Streamlit ---
+
+Streamlit config folder
+
+.streamlit/
+
+--- Project Specific ---
+
+Ignore the zip file you uploaded
+
+data_managemnet.7z
+
+Optional: Ignore the results folder if you don't want to track generated images
+
+results/
+
+Optional: Ignore raw data if it's too large for GitHub (usually >100MB)
+
+data/
